@@ -53,6 +53,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * {@link SingleThreadEventLoop} implementation which register the {@link Channel}'s to a
  * {@link Selector} and so does the multi-plexing of these in the event loop.
  *
+ * 实现对注册到其中的 Channel 的就绪的IO事件，和对用户提交的任务进行处理
+ *
  */
 public final class NioEventLoop extends SingleThreadEventLoop {
 
@@ -111,6 +113,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     /**
      * The NIO {@link Selector}.
      */
+    // 每个NioEventLoop对象上，都独有一个Selector对象
     private Selector selector;
     private Selector unwrappedSelector;
     private SelectedSelectionKeySet selectedKeys;
@@ -272,6 +275,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
      */
     public SelectorProvider selectorProvider() {
         return provider;
+    }
+
+    @Override
+    protected void addTask(Runnable task) {
+        super.addTask(task);
     }
 
     @Override
@@ -438,6 +446,12 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * Selector 一般称为选择器，它是 Java NIO 核心组件中的一个。
+     * 用于轮询一个或多个 NIO Channel 的状态是否处于可读、可写。
+     * 一个线程就可以管理多个 Channel ，也就说可以管理多个网络连接。
+     * 也因此，Selector 也被称为多路复用器
+     */
     @Override
     protected void run() {
         for (;;) {
@@ -776,6 +790,15 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 对 Selector 的 select 操作周期进行统计，每完成一次空的 select 操作进行一次计数，
+     * 若在某个周期内连续发生 N 次空轮询，则判断触发了 Epoll 死循环 Bug 。
+     * 此处空的 select 操作的定义是，select 操作执行了 0 毫秒。
+     *
+     * Netty 重建 Selector 来解决。判断是否是其他线程发起的重建请求，
+     * 若不是则将原 SocketChannel 从旧的 Selector 上取消注册，然后重新注册到新的 Selector 上，
+     * 最后将原来的 Selector 关闭。
+     */
     private void select(boolean oldWakenUp) throws IOException {
         Selector selector = this.selector;
         try {

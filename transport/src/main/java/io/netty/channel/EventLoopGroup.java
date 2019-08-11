@@ -25,6 +25,8 @@ import io.netty.util.concurrent.EventExecutorGroup;
 public interface EventLoopGroup extends EventExecutorGroup {
     /**
      * Return the next {@link EventLoop} to use
+     *
+     * 选择下一个 EventLoop 对象
      */
     @Override
     EventLoop next();
@@ -32,6 +34,9 @@ public interface EventLoopGroup extends EventExecutorGroup {
     /**
      * Register a {@link Channel} with this {@link EventLoop}. The returned {@link ChannelFuture}
      * will get notified once the registration was complete.
+     *
+     * 注册 Channel 到 EventLoopGroup
+     *
      */
     ChannelFuture register(Channel channel);
 

@@ -42,10 +42,13 @@ import java.util.concurrent.RejectedExecutionException;
 public abstract class AbstractChannel extends DefaultAttributeMap implements Channel {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractChannel.class);
-
+    // 父Channel对象。对于NIOServerSocketChannel的parent为空
     private final Channel parent;
+    // Channel的编号对象。在构造方法中，通过newId()方法，进行创建。
     private final ChannelId id;
     private final Unsafe unsafe;
+    // ChannelPipeline 的英文注释： A list of ChannelHandlers which handles or intercepts inbound events and outbound
+    // operations of a Channel
     private final DefaultChannelPipeline pipeline;
     private final VoidChannelPromise unsafeVoidPromise = new VoidChannelPromise(this, false);
     private final CloseFuture closeFuture = new CloseFuture(this);
@@ -457,18 +460,23 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 promise.setFailure(new IllegalStateException("registered to an event loop already"));
                 return;
             }
+            // 校验Channel 和 eventLoop 匹配
             if (!isCompatible(eventLoop)) {
                 promise.setFailure(
                         new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
                 return;
             }
-
             AbstractChannel.this.eventLoop = eventLoop;
 
+            /**
+             * 始终由同一个线程去执行注册逻辑，将线程所带来的并发问题降到最低的限度
+             */
             if (eventLoop.inEventLoop()) {
+                // 如果调用本方法的线程与EventLoop包裹的线程为同一个线程，则由该线程去执行注册逻辑
                 register0(promise);
             } else {
                 try {
+                    // 否则，还是将注册逻辑包裹为一个任务，提交到eventLoop所属线程去执行
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -479,31 +487,44 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     logger.warn(
                             "Force-closing a channel whose registration task was not accepted by an event loop: {}",
                             AbstractChannel.this, t);
+                    // 强制关闭Channel
                     closeForcibly();
+                    // 通知 closeFuture 已经关闭
                     closeFuture.setClosed();
+                    // 回调通知 promise 发生该异常
                     safeSetFailure(promise, t);
                 }
             }
         }
 
+        /**
+         * 注册逻辑
+         * @param promise
+         */
         private void register0(ChannelPromise promise) {
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register
                 // call was outside of the eventLoop
+                // 确保 Channel 是打开的
                 if (!promise.setUncancellable() || !ensureOpen(promise)) {
                     return;
                 }
+                // 记录是否为首次注册
                 boolean firstRegistration = neverRegistered;
+                // 执行注册逻辑
                 doRegister();
                 neverRegistered = false;
                 registered = true;
-
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                // 触发 ChannelInitializer执行，进行handler初始化
+                //  ServerBootstrap 对 Channel 设置的 ChannelInitializer 将被执行，进行 Channel 的 Handler 的初始化
                 pipeline.invokeHandlerAddedIfNeeded();
 
                 safeSetSuccess(promise);
+
                 pipeline.fireChannelRegistered();
+
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
                 if (isActive()) {

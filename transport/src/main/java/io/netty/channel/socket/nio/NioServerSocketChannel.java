@@ -15,6 +15,7 @@
  */
 package io.netty.channel.socket.nio;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelOption;
@@ -46,6 +47,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
                              implements io.netty.channel.socket.ServerSocketChannel {
 
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
+    // 静态属性，默认的 SelectorProvider 实现类
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
@@ -53,7 +55,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     private static ServerSocketChannel newSocket(SelectorProvider provider) {
         try {
             /**
-             *  Use the {@link SelectorProvider} to open {@link SocketChannel} and so remove condition in
+             *  use the {@link selectorprovider} to open {@link socketchannel} and so remove condition in
              *  {@link SelectorProvider#provider()} which is called by each ServerSocketChannel.open() otherwise.
              *
              *  See <a href="https://github.com/netty/netty/issues/2308">#2308</a>.
@@ -65,6 +67,8 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         }
     }
 
+    // config 属性，Channel 对应的配置对象。
+    // ChannelConfig 的官网英文描述： A set of configuration properties of a Channel
     private final ServerSocketChannelConfig config;
 
     /**
@@ -195,6 +199,11 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     }
 
     private final class NioServerSocketChannelConfig extends DefaultServerSocketChannelConfig {
+        @Override
+        public ByteBufAllocator getAllocator() {
+            return super.getAllocator();
+        }
+
         private NioServerSocketChannelConfig(NioServerSocketChannel channel, ServerSocket javaSocket) {
             super(channel, javaSocket);
         }

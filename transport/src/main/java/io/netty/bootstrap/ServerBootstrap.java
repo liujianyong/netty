@@ -67,6 +67,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     /**
      * Specify the {@link EventLoopGroup} which is used for the parent (acceptor) and the child (client).
+     * parentGroup 和 childGroup 使用的同一个，一般情况下，我们不建议使用
      */
     @Override
     public ServerBootstrap group(EventLoopGroup group) {
@@ -110,6 +111,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     /**
      * Set the specific {@link AttributeKey} with the given value on every child {@link Channel}. If the value is
      * {@code null} the {@link AttributeKey} is removed
+     * 设置子Channel的属性
      */
     public <T> ServerBootstrap childAttr(AttributeKey<T> childKey, T value) {
         ObjectUtil.checkNotNull(childKey, "childKey");
@@ -129,13 +131,18 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * 初始化 Channel 配置
+     */
     @Override
     void init(Channel channel) throws Exception {
+        // TCP相关参数
         final Map<ChannelOption<?>, Object> options = options0();
         synchronized (options) {
             setChannelOptions(channel, options, logger);
         }
 
+        // 设置可以在多个handler中共享的数据
         final Map<AttributeKey<?>, Object> attrs = attrs0();
         synchronized (attrs) {
             for (Entry<AttributeKey<?>, Object> e: attrs.entrySet()) {
@@ -147,6 +154,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
         ChannelPipeline p = channel.pipeline();
 
+        // 记录当前的属性
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
         final Entry<ChannelOption<?>, Object>[] currentChildOptions;
@@ -158,18 +166,24 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(0));
         }
 
+        // 添加 ChannelInitializer 对象到 pipeline 中，用于后续初始化 ChannelHandler 到 pipeline 中
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) throws Exception {
                 final ChannelPipeline pipeline = ch.pipeline();
+
+                // 添加配置的 ChannelHandler 到 pipeline 中
                 ChannelHandler handler = config.handler();
                 if (handler != null) {
                     pipeline.addLast(handler);
                 }
-
+                /**
+                 * 将接受到客户端连接的channel，从BoosGroup转移到workGroup
+                 */
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
+                        // ServerBootstrapAcceptor 也是一个 ChannelHandler 实现类，用于接受客户端的连接请求
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }
@@ -243,6 +257,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 child.attr((AttributeKey<Object>) e.getKey()).set(e.getValue());
             }
 
+            /**
+             * 将Channel 注册到 workGroup，这样workGroup就接手了后续的channel的IO读写事件
+             */
             try {
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override

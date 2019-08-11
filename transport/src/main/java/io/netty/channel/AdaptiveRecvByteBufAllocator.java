@@ -15,6 +15,9 @@
  */
 package io.netty.channel;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -92,6 +95,12 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
     private final class HandleImpl extends MaxMessageHandle {
         private final int minIndex;
         private final int maxIndex;
+
+        @Override
+        public ByteBuf allocate(ByteBufAllocator alloc) {
+            return super.allocate(alloc);
+        }
+
         private int index;
         private int nextReceiveBufferSize;
         private boolean decreaseNow;

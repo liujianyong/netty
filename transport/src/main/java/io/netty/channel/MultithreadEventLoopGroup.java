@@ -34,6 +34,7 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(MultithreadEventLoopGroup.class);
 
+    // 默认 EventLoop 线程数
     private static final int DEFAULT_EVENT_LOOP_THREADS;
 
     static {
@@ -81,6 +82,11 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
     @Override
     protected abstract EventLoop newChild(Executor executor, Object... args) throws Exception;
 
+    /**
+     *
+     * 注册 Channel 到 EventLoopGroup。实际上，EventLoopGroup 会分配一个 EventLoop 给该 Channel 注册
+     *
+     */
     @Override
     public ChannelFuture register(Channel channel) {
         return next().register(channel);

@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
 
+    // EventExecutor 是 EventLoop 的父接口
     private final EventExecutor[] children;
     private final Set<EventExecutor> readonlyChildren;
     private final AtomicInteger terminatedChildren = new AtomicInteger();
@@ -73,12 +74,13 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         if (executor == null) {
+            // 解耦，线程本身的创建和线程要执行的任务分离
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
 
         children = new EventExecutor[nThreads];
-
         for (int i = 0; i < nThreads; i ++) {
+            // 是否创建成功
             boolean success = false;
             try {
                 children[i] = newChild(executor, args);
@@ -92,6 +94,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
                         children[j].shutdownGracefully();
                     }
 
+                    // 确保所有已创建的EventExecutor已关闭
                     for (int j = 0; j < i; j ++) {
                         EventExecutor e = children[j];
                         try {
@@ -110,19 +113,24 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
 
         chooser = chooserFactory.newChooser(children);
 
+        // 创建监听器，用于 EventExecutor 终止时的监听
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {
             @Override
             public void operationComplete(Future<Object> future) throws Exception {
+                // 全部关闭
                 if (terminatedChildren.incrementAndGet() == children.length) {
+                    // 设置结果，并通知监听器们
                     terminationFuture.setSuccess(null);
                 }
             }
         };
 
+        // 设置监听器到每个 EventExecutor
         for (EventExecutor e: children) {
             e.terminationFuture().addListener(terminationListener);
         }
 
+        // 创建不可变（只读）的 EventExecutor 集合
         Set<EventExecutor> childrenSet = new LinkedHashSet<EventExecutor>(children.length);
         Collections.addAll(childrenSet, children);
         readonlyChildren = Collections.unmodifiableSet(childrenSet);
@@ -145,6 +153,8 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
     /**
      * Return the number of {@link EventExecutor} this implementation uses. This number is the maps
      * 1:1 to the threads it use.
+     *
+     * 获得 EventExecutor 数组的大小
      */
     public final int executorCount() {
         return children.length;

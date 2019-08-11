@@ -59,15 +59,15 @@ public final class EchoServer {
              .option(ChannelOption.SO_BACKLOG, 100)
              .handler(new LoggingHandler(LogLevel.INFO))
              .childHandler(new ChannelInitializer<SocketChannel>() {
-                 @Override
-                 public void initChannel(SocketChannel ch) throws Exception {
-                     ChannelPipeline p = ch.pipeline();
-                     if (sslCtx != null) {
-                         p.addLast(sslCtx.newHandler(ch.alloc()));
+                     @Override
+                     public void initChannel(SocketChannel ch) throws Exception {
+                         ChannelPipeline p = ch.pipeline();
+                         if (sslCtx != null) {
+                             p.addLast(sslCtx.newHandler(ch.alloc()));
+                         }
+                         //p.addLast(new LoggingHandler(LogLevel.INFO));
+                         p.addLast(serverHandler);
                      }
-                     //p.addLast(new LoggingHandler(LogLevel.INFO));
-                     p.addLast(serverHandler);
-                 }
              });
 
             // Start the server.

@@ -58,6 +58,8 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     @SuppressWarnings("unchecked")
     private volatile AddressResolverGroup<SocketAddress> resolver =
             (AddressResolverGroup<SocketAddress>) DEFAULT_RESOLVER;
+
+    // 连接地址
     private volatile SocketAddress remoteAddress;
 
     public Bootstrap() { }

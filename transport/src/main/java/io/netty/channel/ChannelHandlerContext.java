@@ -81,7 +81,7 @@ import java.nio.channels.Channels;
  * For example, the following handler will have as many independent {@link AttributeKey}s
  * as how many times it is added to pipelines, regardless if it is added to the
  * same pipeline multiple times or added to different pipelines multiple times:
- * <pre>
+ *  <pre>
  * public class FactorialHandler extends {@link ChannelInboundHandlerAdapter} {
  *
  *   private final {@link AttributeKey}&lt;{@link Integer}&gt; counter = {@link AttributeKey}.valueOf("counter");
